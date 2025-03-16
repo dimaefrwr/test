@@ -5,12 +5,8 @@ const productSchema = new mongoose.Schema({
         type: String,
         required: true
     },
-    price: {
+    quantity: {
         type: Number,
-        required: true
-    },
-    store: {
-        type: String,
         required: true
     },
     isBought: {

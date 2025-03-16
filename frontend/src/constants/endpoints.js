@@ -1,4 +1,1 @@
-export const API_URL = 'http://localhost:3000/api';
-export const ENDPOINTS = {
-    products: '/products'
-};
+export const API_URL = 'http://192.168.0.104:3000/api/products';

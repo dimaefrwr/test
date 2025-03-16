@@ -1,30 +1,35 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const cors = require('cors');
-const path = require('path');
-const connectDB = require('./config/db');
 const productRoutes = require('./routes/productRoutes');
-const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
 
-connectDB();
-
+// Middleware
 app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, '../../frontend/web-build')));
 
-app.use('/api/products', productRoutes);
+// Routes
+app.use('/api', productRoutes);
 
-app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../../frontend/web-build/index.html'));
+// MongoDB connection
+mongoose.connect('mongodb://localhost:27017/shopping-list', {
+    useNewUrlParser: true,
+    useUnifiedTopology: true
 });
 
-app.use(errorHandler);
+mongoose.connection.on('connected', () => {
+    console.log('MongoDB connected successfully');
+});
 
-const PORT = process.env.PORT || 3000;
+mongoose.connection.on('error', (err) => {
+    console.log('MongoDB connection error:', err);
+});
 
-app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
+// Server start
+const port = 3000;
+app.listen(port, () => {
+    console.log(`Server is running on port ${port}`);
 });
 
 module.exports = app;

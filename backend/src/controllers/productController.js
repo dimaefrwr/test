@@ -12,8 +12,7 @@ exports.getProducts = async (req, res) => {
 exports.addProduct = async (req, res) => {
     const product = new Product({
         name: req.body.name,
-        price: req.body.price,
-        store: req.body.store,
+        quantity: req.body.quantity,
         isBought: false
     });
 
@@ -47,7 +46,7 @@ exports.deleteProduct = async (req, res) => {
             return res.status(404).json({ message: 'Product not found' });
         }
 
-        await product.remove();
+        await product.deleteOne();
         res.json({ message: 'Product deleted' });
     } catch (error) {
         res.status(500).json({ message: error.message });
