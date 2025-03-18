@@ -1,33 +1,37 @@
-import React, { useState, useEffect } from 'react';
-import { View, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, ScrollView, StyleSheet } from 'react-native';
 import { Text, Button } from 'react-native-paper';
+import { useFocusEffect } from '@react-navigation/native';
 import { API_URL } from '../constants/endpoints';
 
 export default function ShoppingListScreen({ navigation }) {
   const [products, setProducts] = useState([]);
 
-  useEffect(() => {
-    fetchProducts();
-  }, []);
-
   const fetchProducts = async () => {
     try {
-      const response = await fetch(`${API_URL}/products`);
+      const response = await fetch(API_URL);
       const data = await response.json();
+      console.log('Pobrane produkty:', data);
       setProducts(data);
     } catch (error) {
-      console.error('Error fetching products:', error);
+      console.log('Błąd pobierania:', error);
     }
   };
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchProducts();
+    }, [])
+  );
 
   return (
     <View style={styles.container}>
       <ScrollView>
         {products.map(item => (
-          <TouchableOpacity key={item._id} style={styles.item}>
+          <View key={item._id} style={styles.item}>
             <Text style={styles.title}>{item.name}</Text>
             <Text style={styles.quantity}>Ilość: {item.quantity}</Text>
-          </TouchableOpacity>
+          </View>
         ))}
       </ScrollView>
       <Button

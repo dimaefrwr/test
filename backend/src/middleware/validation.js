@@ -1,14 +1,14 @@
 const validateProduct = (req, res, next) => {
-    const { name, price, store } = req.body;
-
-    if (!name || !price || !store) {
-        return res.status(400).json({ message: 'All fields are required' });
+    const { name, quantity } = req.body;
+    
+    if (!name || !quantity) {
+        return res.status(400).json({ message: 'Name and quantity are required' });
     }
-
-    if (typeof price !== 'number' || price <= 0) {
-        return res.status(400).json({ message: 'Price must be a positive number' });
+    
+    if (typeof quantity !== 'number') {
+        return res.status(400).json({ message: 'Quantity must be a number' });
     }
-
+    
     next();
 };
 
