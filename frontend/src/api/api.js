@@ -1,46 +1,50 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:3000/api';
+// Ustaw port na 3000
+const API_URL = 'http://192.168.0.104:3000/api';
 
-export const addProduct = async (productData) => {
+export const getProducts = async () => {
   try {
-    console.log('Wysyłanie produktu:', productData);
-    const response = await axios.post(`${API_URL}/products`, productData);
-    console.log('Odpowiedź backendu:', response.data);
+    console.log('Wysyłanie żądania do:', `${API_URL}/products`);
+    const response = await axios.get(`${API_URL}/products`);
+    console.log('Odpowiedź serwera:', response.data);
     return response.data;
   } catch (error) {
-    console.error('Pełny błąd podczas dodawania produktu:', error);
+    console.error('Szczegółowy błąd pobierania produktów:', {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status
+    });
     throw error;
   }
 };
 
-export const getProducts = async () => {
+export const addProduct = async (productData) => {
   try {
-    console.log('Próba pobrania produktów');
-    const response = await axios.get(`${API_URL}/products`);
-    console.log('Pobrane produkty:', response.data);
+    const response = await axios.post(`${API_URL}/products`, productData);
     return response.data;
   } catch (error) {
-    console.error('Szczegółowy błąd pobierania produktów:', error);
+    console.error('Błąd dodawania produktu:', error);
     throw error;
   }
 };
 
 export const deleteProduct = async (productId) => {
   try {
-    await axios.delete(`${API_URL}/products/${productId}`);
+    const response = await axios.delete(`${API_URL}/products/${productId}`);
+    return response.data;
   } catch (error) {
-    console.error('Błąd podczas usuwania produktu:', error);
+    console.error('Błąd usuwania produktu:', error);
     throw error;
   }
 };
 
-export const updateProduct = async (product) => {
+export const updateProduct = async (productId, productData) => {
   try {
-    const response = await axios.put(`${API_URL}/products/${product.id}`, product);
+    const response = await axios.put(`${API_URL}/products/${productId}`, productData);
     return response.data;
   } catch (error) {
-    console.error('Błąd podczas aktualizacji produktu:', error);
+    console.error('Błąd aktualizacji produktu:', error);
     throw error;
   }
 };

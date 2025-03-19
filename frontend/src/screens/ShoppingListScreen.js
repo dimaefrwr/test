@@ -1,78 +1,118 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, Button, Modal, StyleSheet } from 'react-native';
-import api from '../api/api';
-import AddProductForm from '../components/AddProductForm/AddProductForm';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { 
+  View, 
+  FlatList, 
+  Text, 
+  StyleSheet, 
+  RefreshControl, 
+  TouchableOpacity, 
+  Platform 
+} from 'react-native';
+import { getProducts, deleteProduct } from '../api/api';
 
 const ShoppingListScreen = () => {
   const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [modalVisible, setModalVisible] = useState(false);
+  const [error, setError] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchProducts = useCallback(async () => {
+    try {
+      setRefreshing(true);
+      const fetchedProducts = await getProducts();
+      setProducts(fetchedProducts);
+      setError(null);
+    } catch (err) {
+      console.error('Błąd pobierania produktów:', err);
+      setError('Nie udało się pobrać produktów');
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
 
   useEffect(() => {
     fetchProducts();
-  }, []);
+  }, [fetchProducts]);
 
-  async function fetchProducts() {
+  const handleDeleteProduct = useCallback(async (productId) => {
     try {
-      const response = await api.getProducts();
-      console.log('Dane z backendu:', response);
-      setProducts(response);
-      console.log('Aktualny stan products:', products); // Dodany log
-      setLoading(false);
-    } catch (error) {
-      console.error('Błąd pobierania produktów:', error);
-      setLoading(false);
+      await deleteProduct(productId);
+      fetchProducts();
+    } catch (err) {
+      console.error('Błąd usuwania produktu:', err);
+      setError('Nie udało się usunąć produktu');
     }
-  }
+  }, [fetchProducts]);
 
-  const handleDeleteProduct = async (id) => {
-    await api.deleteProduct(id);
-    fetchProducts();
-  };
-
-  const handleUpdateProduct = async (id, product) => {
-    await api.updateProduct(id, product);
-    fetchProducts();
-  };
-
-  const handleAddProduct = async (product) => {
-    console.log('Otrzymane dane:', product);
-    await api.addProduct(product);
-    fetchProducts();
-  };
-
-  const renderItem = ({ item }) => {
-    console.log('Renderowany item:', item);
+  const renderProduct = useCallback(({ item, index }) => {
+    const uniqueKey = item._id || item.name || index.toString();
     return (
-      <View style={styles.item}>
-        <Text>{item.name}</Text>
-        <Text>Ilość: {item.quantity}</Text>
-        <Text>Cena: {item.price}</Text>
-        <Text>Sklep: {item.shop}</Text>
-        <Button title="Usuń" onPress={() => handleDeleteProduct(item.id)} />
+      <View style={styles.productItem} key={uniqueKey}>
+        <View style={styles.productInfo}>
+          <Text style={styles.productName}>{item.name}</Text>
+          <View style={styles.productDetails}>
+            <Text>Ilość: {item.quantity}</Text>
+            <Text>Cena: {item.price} zł</Text>
+            <Text>Sklep: {item.shop}</Text>
+          </View>
+        </View>
+        <TouchableOpacity 
+          style={styles.deleteButton}
+          onPress={() => handleDeleteProduct(item._id)}
+        >
+          <Text style={styles.deleteButtonText}>🗑️</Text>
+        </TouchableOpacity>
       </View>
     );
-  };
+  }, [handleDeleteProduct]);
+
+  const keyExtractor = useCallback((item, index) => 
+    item._id?.toString() || item.name || index.toString()
+  , []);
+
+  const listProps = useMemo(() => ({
+    initialNumToRender: 10,
+    maxToRenderPerBatch: 10,
+    windowSize: 21,
+    removeClippedSubviews: Platform.OS === 'android',
+    updateCellsBatchingPeriod: 50,
+    legacyImplementation: false,
+    // Dodaj tę linię
+    disableVirtualization: false,
+  }), []);
+
+  const refreshControlComponent = useMemo(() => (
+    <RefreshControl
+      refreshing={refreshing}
+      onRefresh={fetchProducts}
+      colors={['#9Bd35A', '#689F38']}
+      tintColor="#689F38"
+    />
+  ), [refreshing, fetchProducts]);
+
+  const memoizedProducts = useMemo(() => products, [products]);
+
+  if (error) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.errorText}>{error}</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Lista Zakupów</Text>
-      <Button title="Dodaj produkt" onPress={() => setModalVisible(true)} />
-      {loading ? (
-        <Text>Ładowanie...</Text>
-      ) : (
-        <FlatList
-          data={products}
-          renderItem={renderItem}
-          keyExtractor={(item) => item.id.toString()}
-        />
-      )}
-      <Modal visible={modalVisible} animationType="slide">
-        <AddProductForm
-          onClose={() => setModalVisible(false)}
-          onAddProduct={handleAddProduct}
-        />
-      </Modal>
+      <FlatList
+        data={memoizedProducts}
+        renderItem={renderProduct}
+        keyExtractor={keyExtractor}
+        refreshControl={refreshControlComponent}
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>Brak produktów</Text>
+          </View>
+        }
+        {...listProps}
+      />
     </View>
   );
 };
@@ -80,18 +120,64 @@ const ShoppingListScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
+    backgroundColor: '#f5f5f5',
   },
-  title: {
-    fontSize: 24,
+  productItem: {
+    backgroundColor: 'white',
+    padding: 15,
+    marginVertical: 5,
+    marginHorizontal: 10,
+    borderRadius: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  productInfo: {
+    flex: 1,
+    marginRight: 10,
+  },
+  productName: {
+    fontSize: 18,
     fontWeight: 'bold',
-    marginBottom: 20,
+    marginBottom: 5,
   },
-  item: {
-    padding: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#ccc',
+  productDetails: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  deleteButton: {
+    backgroundColor: '#ff4d4d',
+    borderRadius: 20,
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  deleteButtonText: {
+    color: 'white',
+    fontSize: 20,
+  },
+  errorText: {
+    color: 'red',
+    textAlign: 'center',
+    marginTop: 20,
+    fontSize: 16,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 50,
+  },
+  emptyText: {
+    fontSize: 18,
+    color: '#888',
   },
 });
 
-export default ShoppingListScreen;
+export default React.memo(ShoppingListScreen);
