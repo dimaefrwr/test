@@ -1,11 +1,32 @@
 import axios from 'axios';
-import { API_URL, ENDPOINTS } from '../constants/endpoints';
+
+const API_URL = 'http://192.168.0.104:3000'; // Upewnij się, że adres IP jest poprawny
 
 const api = axios.create({
-    baseURL: API_URL
+  baseURL: API_URL,
 });
 
-export const getProducts = () => api.get(ENDPOINTS.products);
-export const addProduct = (product) => api.post(ENDPOINTS.products, product);
-export const updateProduct = (id, product) => api.put(`${ENDPOINTS.products}/${id}`, product);
-export const deleteProduct = (id) => api.delete(`${ENDPOINTS.products}/${id}`);
+export const getProducts = async () => {
+  const response = await api.get('/products');
+  return response.data;
+};
+
+export const addProduct = async (product) => {
+  const response = await api.post('/products', product);
+  return response.data;
+};
+
+export const deleteProduct = async (id) => {
+  await api.delete(`/products/${id}`);
+};
+
+export const updateProduct = async (id, product) => {
+  await api.put(`/products/${id}`, product);
+};
+
+export default {
+  getProducts,
+  addProduct,
+  deleteProduct,
+  updateProduct,
+};

@@ -1,30 +1,92 @@
 const express = require('express');
-const mongoose = require('mongoose');
 const cors = require('cors');
-const productRoutes = require('./routes/productRoutes');
+const bodyParser = require('body-parser');
+const { ObjectId } = require('mongodb');
+const { connectDB, getDB } = require('./config/db');
 
 const app = express();
+const port = 3000;
 
 app.use(cors());
-app.use(express.json());
-app.use('/api/products', productRoutes);
+app.use(bodyParser.json());
 
-mongoose.connect('mongodb://localhost:27017/shopping-list', {
-    useNewUrlParser: true,
-    useUnifiedTopology: true
-});
+async function startServer() {
+  await connectDB();
+  const db = getDB();
+  const COLLECTION_NAME = 'products';
 
-mongoose.connection.on('connected', () => {
-    console.log('MongoDB connected successfully');
-});
+  // Pobieranie wszystkich produktów
+  app.get('/products', async (req, res) => {
+    console.log('Żądanie GET /products');
+    try {
+      const products = await db.collection(COLLECTION_NAME).find().toArray();
+      console.log('Pobrane produkty:', products);
+      res.json(products);
+    } catch (err) {
+      console.error('Błąd pobierania produktów:', err);
+      res.status(500).json({ error: 'Wystąpił błąd serwera.' });
+    }
+  });
 
-mongoose.connection.on('error', (err) => {
-    console.log('MongoDB connection error:', err);
-});
+  // Dodawanie nowego produktu
+  app.post('/products', async (req, res) => {
+    console.log('Żądanie POST /products, dane:', req.body);
+    const { name, quantity, price, shop } = req.body;
+    if (!name || !quantity || !price || !shop) {
+      return res.status(400).json({ error: 'Brakujące dane produktu.' });
+    }
+    try {
+      const result = await db.collection(COLLECTION_NAME).insertOne({
+        name,
+        quantity,
+        price,
+        shop,
+      });
+      console.log('Produkt dodany, ID:', result.insertedId);
+      res.json({ id: result.insertedId, name, quantity, price, shop });
+    } catch (err) {
+      console.error('Błąd dodawania produktu:', err);
+      res.status(500).json({ error: 'Wystąpił błąd serwera.' });
+    }
+  });
 
-const port = 3000;
-app.listen(port, '0.0.0.0', () => {
-    console.log(`Server is running on port ${port}`);
-});
+  // Usuwanie produktu
+  app.delete('/products/:id', async (req, res) => {
+    console.log('Żądanie DELETE /products/:id, ID:', req.params.id);
+    const { id } = req.params;
+    try {
+      await db.collection(COLLECTION_NAME).deleteOne({
+        _id: new ObjectId(id),
+      });
+      console.log('Produkt usunięty, ID:', id);
+      res.json({ message: 'Produkt usunięty.' });
+    } catch (err) {
+      console.error('Błąd usuwania produktu:', err);
+      res.status(500).json({ error: 'Wystąpił błąd serwera.' });
+    }
+  });
 
-module.exports = app;
+  // Aktualizacja produktu
+  app.put('/products/:id', async (req, res) => {
+    console.log('Żądanie PUT /products/:id, ID:', req.params.id, 'dane:', req.body);
+    const { id } = req.params;
+    const { name, quantity, price, shop } = req.body;
+    try {
+      await db.collection(COLLECTION_NAME).updateOne(
+        { _id: new ObjectId(id) },
+        { $set: { name, quantity, price, shop } }
+      );
+      console.log('Produkt zaktualizowany, ID:', id);
+      res.json({ message: 'Produkt zaktualizowany.' });
+    } catch (err) {
+      console.error('Błąd aktualizacji produktu:', err);
+      res.status(500).json({ error: 'Wystąpił błąd serwera.' });
+    }
+  });
+
+  app.listen(port, () => {
+    console.log(`Serwer działa na porcie ${port}`);
+  });
+}
+
+startServer();

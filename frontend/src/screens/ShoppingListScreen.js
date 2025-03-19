@@ -1,71 +1,97 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, ScrollView, StyleSheet } from 'react-native';
-import { Text, Button } from 'react-native-paper';
-import { useFocusEffect } from '@react-navigation/native';
-import { API_URL } from '../constants/endpoints';
+import React, { useState, useEffect } from 'react';
+import { View, Text, FlatList, Button, Modal, StyleSheet } from 'react-native';
+import api from '../api/api';
+import AddProductForm from '../components/AddProductForm/AddProductForm';
 
-export default function ShoppingListScreen({ navigation }) {
+const ShoppingListScreen = () => {
   const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [modalVisible, setModalVisible] = useState(false);
 
-  const fetchProducts = async () => {
+  useEffect(() => {
+    fetchProducts();
+  }, []);
+
+  async function fetchProducts() {
     try {
-      const response = await fetch(API_URL);
-      const data = await response.json();
-      console.log('Pobrane produkty:', data);
-      setProducts(data);
+      const response = await api.getProducts();
+      console.log('Dane z backendu:', response);
+      setProducts(response);
+      console.log('Aktualny stan products:', products); // Dodany log
+      setLoading(false);
     } catch (error) {
-      console.log('Błąd pobierania:', error);
+      console.error('Błąd pobierania produktów:', error);
+      setLoading(false);
     }
+  }
+
+  const handleDeleteProduct = async (id) => {
+    await api.deleteProduct(id);
+    fetchProducts();
   };
 
-  useFocusEffect(
-    useCallback(() => {
-      fetchProducts();
-    }, [])
-  );
+  const handleUpdateProduct = async (id, product) => {
+    await api.updateProduct(id, product);
+    fetchProducts();
+  };
+
+  const handleAddProduct = async (product) => {
+    console.log('Otrzymane dane:', product);
+    await api.addProduct(product);
+    fetchProducts();
+  };
+
+  const renderItem = ({ item }) => {
+    console.log('Renderowany item:', item);
+    return (
+      <View style={styles.item}>
+        <Text>{item.name}</Text>
+        <Text>Ilość: {item.quantity}</Text>
+        <Text>Cena: {item.price}</Text>
+        <Text>Sklep: {item.shop}</Text>
+        <Button title="Usuń" onPress={() => handleDeleteProduct(item.id)} />
+      </View>
+    );
+  };
 
   return (
     <View style={styles.container}>
-      <ScrollView>
-        {products.map(item => (
-          <View key={item._id} style={styles.item}>
-            <Text style={styles.title}>{item.name}</Text>
-            <Text style={styles.quantity}>Ilość: {item.quantity}</Text>
-          </View>
-        ))}
-      </ScrollView>
-      <Button
-        mode="contained"
-        onPress={() => navigation.navigate('AddProduct')}
-        style={styles.addButton}
-      >
-        Dodaj produkt
-      </Button>
+      <Text style={styles.title}>Lista Zakupów</Text>
+      <Button title="Dodaj produkt" onPress={() => setModalVisible(true)} />
+      {loading ? (
+        <Text>Ładowanie...</Text>
+      ) : (
+        <FlatList
+          data={products}
+          renderItem={renderItem}
+          keyExtractor={(item) => item.id.toString()}
+        />
+      )}
+      <Modal visible={modalVisible} animationType="slide">
+        <AddProductForm
+          onClose={() => setModalVisible(false)}
+          onAddProduct={handleAddProduct}
+        />
+      </Modal>
     </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 10,
-  },
-  item: {
-    backgroundColor: '#fff',
     padding: 20,
-    marginVertical: 8,
-    marginHorizontal: 16,
-    borderRadius: 5,
-    elevation: 3,
   },
   title: {
-    fontSize: 18,
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 20,
   },
-  quantity: {
-    fontSize: 14,
-    color: '#666',
-  },
-  addButton: {
-    margin: 16,
+  item: {
+    padding: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ccc',
   },
 });
+
+export default ShoppingListScreen;
